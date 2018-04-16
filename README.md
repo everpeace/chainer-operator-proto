@@ -2,13 +2,23 @@
 
 This can introduce `ChainerJob` cutom resource definition into your Kubernetes cluster.
 
-# How to
+# How to Use
+
+## Administration Task
+You firstly install `chainer-operator` to your kubernetes cluster which provides `ChainerJob` custom resource definition(CRD).
+
+`chainer-operator` was implemented as composite controller which is provided [metacontroller](https://github.com/GoogleCloudPlatform/metacontroller).
+
 
 1. install [metacontroller](https://github.com/GoogleCloudPlatform/metacontroller)
 
 2. install `chainer-operator`
    ```
-   $ kubectl -f chainer-operator.yaml
+   # install chainerjob operator scripts(jsonnnet)
+   $ kubectl -n metacontroller create configmap chainerjob-operator-v1alpha1-hooks --from-file=v1alpha1-hooks
+
+   # create 'ChainerJob' CRD and deploy chainerjob operator
+   $ kubectl apply -f chainer-operator.yaml
 
    $ kubectl get crd
    $ k get crd
@@ -17,16 +27,42 @@ This can introduce `ChainerJob` cutom resource definition into your Kubernetes c
     compositecontrollers.metacontroller.k8s.io   7d
     controllerrevisions.metacontroller.k8s.io    7d
     decoratorcontrollers.metacontroller.k8s.io   7d
+    ```
+
+## Run your Chainer Jobs
+### Case 1: Chainer Job (single pod)
+1. build your image
+   ```
+   $ cd examples/chainer
+   $ ./build-and-publish.sh YOUR_IMAGE_REPO YOUR_IMAGE_TAG
    ```
 
-3. create sshkey secret
+2. run example job
    ```
-   $ kubectl create -f example/example-ssh-key.yaml
+   $ cd examples/chainer
+
+   # replace image info in examplejob-chainer.yaml
+
+   $ kubectl create -f examplejob-chainer.yaml
+   $ kubectl logs -f examplejob-chainer-master -c chainer
+   // you will see chainer mnist example log (cpu mode.)
    ```
 
-4. run your first job
+
+### Case 2: ChainerMN Job (Multiple Nodes)
+1. build your image
    ```
-   $ kubectl create -f example/example-chainerjob.yaml
-   $ kubectl logs -f example-chainerjob -c chainer
-   // you will see chainermn mnist example log (cpu mode.)
+   $ cd examples/chainermn
+   $ ./build-and-publish.sh YOUR_IMAGE_REPO YOUR_IMAGE_TAG
+   ```
+
+2. run example job
+   ```
+   $ cd examples/chainermn
+
+   # replace image info in examplejob-chainermn.yaml
+
+   $ kubectl create -f examplejob-chainermn.yaml
+   $ kubectl logs -f examplejob-chainermn-master -c chainer
+   // you will see ChainerMN mnist example log (cpu mode.)
    ```

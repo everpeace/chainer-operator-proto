@@ -8,13 +8,13 @@ local volumes = import "volumes.libsonnet";
 
   all(observed, spec)::
     volumes.hostfileDir(observed, spec)
-    + volumes.assets(observed, spec)
-    + volumes.sshKey(observed, spec),
+    + volumes.kubectlDir(observed, spec)
+    + volumes.assets(observed, spec),
 
   allMounts(observed, spec, basePath)::
     volumes.hostfileDirMount(observed, spec, basePath+'/generated')
-    + volumes.assetsMount(observed, spec, basePath+'/assets')
-    + volumes.sshKeyMount(observed, spec, basePath+'/sshKey'),
+    + volumes.kubectlDirMount(observed, spec, basePath+'/kubectl_dir')
+    + volumes.assetsMount(observed, spec, basePath+'/assets'),
 
   hostfileDir(observed, spec) :: [
     {
@@ -22,9 +22,22 @@ local volumes = import "volumes.libsonnet";
       emptyDir: {}
     }
   ],
-  hostDirMount(observed, spec, mountPath) :: [
+  hostfileDirMount(observed, spec, mountPath) :: [
     {
       name: 'chainerjob-hostfile-dir',
+      mountPath: mountPath
+    }
+  ],
+
+  kubectlDir(observed, spec) :: [
+    {
+      name: 'chainerjob-kubectl-dir',
+      emptyDir: {}
+    }
+  ],
+  kubectlDirMount(observed, spec, mountPath) :: [
+    {
+      name: 'chainerjob-kubectl-dir',
       mountPath: mountPath
     }
   ],
@@ -41,13 +54,8 @@ local volumes = import "volumes.libsonnet";
             mode: 365
           },
           {
-            key: 'init.sh',
-            path: 'init.sh',
-            mode: 365
-          },
-          {
-            key: 'start_sshd.sh',
-            path: 'start_sshd.sh',
+            key: 'kube-plm-rsh-agent',
+            path: 'kube-plm-rsh-agent',
             mode: 365
           }
         ]
@@ -57,22 +65,6 @@ local volumes = import "volumes.libsonnet";
   assetsMount(observed, spec, mountPath):: [
     {
       name: 'chainerjob-assets',
-      mountPath: mountPath
-    }
-  ],
-
-  sshKey(observed, spec) :: [
-    {
-      name: 'chainerjob-sshkey',
-      secret: {
-        secretName: chj.spec(observed, spec).sshKey,
-        defaultMode: 256,
-      }
-    }
-  ],
-  sshKeyMount(observed, spec, mountPath) :: [
-    {
-      name: 'chainerjob-sshkey',
       mountPath: mountPath
     }
   ]

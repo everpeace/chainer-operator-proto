@@ -9,7 +9,10 @@ local utils = import "utils.libsonnet";
   local workers = self,
 
   components(observed, specs)::
-    metacontroller.collection(observed, specs, "apps/v1", "StatefulSet", workers.statefulset),
+    if chj.workerSpec(observed, specs).replicas == 0 then
+      metacontroller.collection(observed, [], "apps/v1", "StatefulSet", workers.statefulset)
+    else
+      metacontroller.collection(observed, specs, "apps/v1", "StatefulSet", workers.statefulset),
 
   statefulset(observed, spec):: {
     local podTemplate        = spec.worker.template,
@@ -49,38 +52,41 @@ local utils = import "utils.libsonnet";
           volumes:
             desiredVolumes
             + volumes.assets(observed, spec)
-            + volumes.sshKey(observed, spec),
+            + volumes.kubectlDir(observed, spec),
+
+          local desiredInitContainers = k8s.getKeyOrElse(podTemplate.spec, 'initContainers', []),
+          initContainers: desiredInitContainers + [
+            {
+              name: 'kubectl-downloader',
+              image: 'tutum/curl',
+              command: [
+                'sh',
+                '-c',
+                |||
+                  curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && \
+                  chmod +x kubectl && \
+                  mv kubectl /kubectl-download/kubectl
+                |||,
+              ],
+              volumeMounts: volumes.kubectlDirMount(observed, spec, 'kubectl-download'),
+            }
+          ],
+
           local desiredContainers = k8s.getKeyOrElse(podTemplate.spec, 'containers', []),
           containers: [ c {
-
-            local desiredCommand = k8s.getKeyOrElse(c, 'command', []),
-            local name = k8s.getKeyOrElse(c, 'name', ''),
-            command: if name == 'chainer' then
-              [ '$(CHAINERJOB_ASSETS_DIR)/init.sh' ]
-            else
-              desiredCommand,
-
-            local desiredPorts = k8s.getKeyOrElse(c, 'ports', []),
-            ports: if name == 'chainer' then
-              desiredPorts + [{
-                containerPort: 20022
-              }]
-            else
-              desiredPorts,
-
             env +: [
               { name: 'CHAINERJOB_ASSETS_DIR', value: '/chainerjob/assets'},
-              { name: 'CHAINERJOB_SSH_KEY_DIR', value: '/chainerjob/sshKey'},
-              { name: 'CHAINERJOB_ROLE', value: 'worker'},
+              { name: 'CHAINERJOB_KUBCTL_DIR', value: '/chainerjob/kubectl_dir'},
               { name: 'OMPI_MCA_btl', value: 'tcp,self' },
               { name: 'OMPI_MCA_btl_tcp_if_include', value:'eth0' },
               { name: 'OMPI_MCA_plm_rsh_no_tree_spawn', value: '1' },
+              { name: 'OMPI_MCA_plm_rsh_agent', value: '/chainerjob/assets/kube-plm-rsh-agent'},
               { name: 'OMPI_MCA_orte_keep_fqdn_hostnames', value: 't'},
             ],
 
             volumeMounts +: [
               volumes.assetsMount(observed, spec, '/chainerjob/assets')[0],
-              volumes.sshKeyMount(observed, spec, '/chainerjob/sshKey')[0]
+              volumes.kubectlDirMount(observed, spec, 'chainerjob/kubectl_dir')[0]
             ]
           } for c in desiredContainers ]
         }

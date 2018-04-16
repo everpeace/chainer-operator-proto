@@ -1,0 +1,19 @@
+apiVersion: k8s.chainer.org/v1alpha1
+kind: ChainerJob
+metadata:
+  name: examplejob-chainer
+spec:
+  master:
+    template:
+      spec:
+        containers:
+        - name: chainer
+          image: # YOUR_REPO:YOUR_TAG
+          command:
+          - sh
+          - -c
+          - |
+            python3 /train_mnist.py -e 2 -b 100
+  worker:
+    replicas: 0
+    template: {}

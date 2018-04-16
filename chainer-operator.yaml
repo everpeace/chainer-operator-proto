@@ -31,16 +31,12 @@ spec:
                 replicas:
                   type: integer
                   minimum: 0
-                # pod template object
-                template:
-                  type: object
-
 
 ---
 apiVersion: metacontroller.k8s.io/v1alpha1
 kind: CompositeController
 metadata:
-  name: chainerjob-operator
+  name: chainerjob-operator-v1alpha1
 spec:
   generateSelector: true
   parentResource:
@@ -60,22 +56,24 @@ spec:
   hooks:
     sync:
       webhook:
-        url: http://chainerjob-operator.metacontroller/sync-cluster
+        url: http://chainerjob-operator-v1alpha1.metacontroller/sync-cluster
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: chainerjob-operator
+  name: chainerjob-operator-v1alpha1
   namespace: metacontroller
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: chainerjob-operator
+      version: v1alpha1
   template:
     metadata:
       labels:
         app: chainerjob-operator
+        version: v1alpha1
     spec:
       containers:
       - name: controller
@@ -87,16 +85,18 @@ spec:
       volumes:
       - name: hooks
         configMap:
-          name: chainerjob-operator-hooks
+          name: chainerjob-operator-v1alpha1-hooks
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: chainerjob-operator
+  name: chainerjob-operator-v1alpha1
   namespace: metacontroller
 spec:
   selector:
     app: chainerjob-operator
+    version: v1alpha1
   ports:
   - port: 80
     targetPort: 8080

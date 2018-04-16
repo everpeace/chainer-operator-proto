@@ -1,0 +1,33 @@
+apiVersion: k8s.chainer.org/v1alpha1
+kind: ChainerJob
+metadata:
+  name: examplejob-chainermn
+spec:
+  master:
+    template:
+      spec:
+        containers:
+        - name: chainer
+          image: # YOUR_REPO:YOUR_TAG
+          command:
+          - sh
+          - -c
+          - |
+            mpiexec --allow-run-as-root \
+              -n 3 -N 1 --display-map \
+              --hostfile /chainerjob/generated/hostfile \
+              --mca orte_base_help_aggregate 0 \
+              --mca mpi_cuda_support 0 \
+              python3 /train_mnist.py -e 2 -b 100
+  worker:
+    replicas: 2
+    template:
+      spec:
+        containers:
+        - name: chainer
+          image: # YOUR_REPO:YOUR_TAG
+          command:
+          - sh
+          - -c
+          - |
+            while true; do sleep & wait; done

@@ -35,6 +35,6 @@
   // spec extractors
   spec(observed, spec)          :: observed.parent.spec,
   masterSpec(observed, spec)    :: chj.spec(observed, spec).master,
-  workersSpec(observed, spec)   :: chj.spec(observed, spec).workers,
+  workerSpec(observed, spec)   :: chj.spec(observed, spec).worker,
 
 }
