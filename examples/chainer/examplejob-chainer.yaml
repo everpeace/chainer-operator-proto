@@ -1,19 +1,19 @@
-apiVersion: k8s.chainer.org/v1alpha1
+apiVersion: kubeflow.org/v1alpha1
 kind: ChainerJob
 metadata:
   name: examplejob-chainer
 spec:
-  master:
+  backend: mpi
+  replicaSpecs:
+  - replicas: 1
+    replicaType: MASTER
     template:
       spec:
         containers:
         - name: chainer
-          image: # YOUR_REPO:YOUR_TAG
+          image: everpeace/chainer:4.1.0
           command:
           - sh
           - -c
           - |
             python3 /train_mnist.py -e 2 -b 100
-  worker:
-    replicas: 0
-    template: {}

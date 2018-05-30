@@ -28,19 +28,19 @@
     else
       null,
 
-    conditionReason(obj, type)::
-      if obj != null && "status" in obj && "conditions" in obj.status then
-        // Filter conditions with matching "type" field.
-        local matches = [
-          if "reason" in cond then
-            cond.reason
-          else ""
-          for cond in obj.status.conditions if cond.type == type
-        ];
-        // Take the first one, if any.
-        if std.length(matches) > 0 then matches[0] else ""
-      else
-        null,
+  conditionReason(obj, type)::
+    if obj != null && "status" in obj && "conditions" in obj.status then
+      // Filter conditions with matching "type" field.
+      local matches = [
+        if "reason" in cond then
+          cond.reason
+        else ""
+        for cond in obj.status.conditions if cond.type == type
+      ];
+      // Take the first one, if any.
+      if std.length(matches) > 0 then matches[0] else ""
+    else
+      null,
 
   // Returns only the objects from a given list that have the
   // "Ready" condition set to "True".
@@ -51,7 +51,7 @@
   // "Available" condition set to "True".
   filterAvailable(list)::
     std.filter(function(x) self.conditionStatus(x, "Available") == "True", list),
-
+    
   // Returns whether the object matches the given label values.
   matchLabels(obj, labels)::
     local keys = std.objectFields(labels);

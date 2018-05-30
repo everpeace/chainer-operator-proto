@@ -1,22 +1,25 @@
 local k8s = import "k8s.libsonnet";
 local metacontroller = import "metacontroller.libsonnet";
-local chj = import "chainerjob.libsonnet";
+local common = import "common.libsonnet";
 
 {
   local subdomain = self,
 
-  components(observed, specs) :: metacontroller.collection(observed, specs, "v1", "Service", subdomain.service),
+  components(observed, spec) ::
+    metacontroller.collection(
+      observed, [spec], "v1", "Service", subdomain.service
+    ),
 
   service(observed, spec)  :: {
     apiVersion: 'v1',
     kind: 'Service',
     metadata: {
-      name: chj.subdomainName(observed, spec),
-      namespace: chj.namespace(observed, spec),
-      labels: chj.labels(observed, spec),
+      name: common.subdomainName(observed, spec),
+      namespace: common.namespace(observed, spec),
+      labels: common.labels(observed, spec),
     },
     spec: {
-      selector: chj.labels(observed, spec),
+      selector: common.labels(observed, spec),
       clusterIP: 'None',
       ports: [
         {

@@ -1,6 +1,6 @@
 local k8s = import "k8s.libsonnet";
 local metacontroller = import "metacontroller.libsonnet";
-local chj = import "chainerjob.libsonnet";
+local common = import "common.libsonnet";
 local volumes = import "volumes.libsonnet";
 local master = import "master.libsonnet";
 local utils = import "utils.libsonnet";
@@ -8,89 +8,84 @@ local utils = import "utils.libsonnet";
 {
   local workers = self,
 
-  components(observed, specs)::
-    if chj.workerSpec(observed, specs).replicas == 0 then
-      metacontroller.collection(observed, [], "apps/v1", "StatefulSet", workers.statefulset)
-    else
-      metacontroller.collection(observed, specs, "apps/v1", "StatefulSet", workers.statefulset),
+  components(observed, spec)::
+    local workerSpec = common.workerSpec(observed, spec);
+    local specs = if 'replicas' in workerSpec then
+      if workerSpec.replicas == 0 then [] else [spec]
+    else [];
+    metacontroller.collection(observed, specs, "apps/v1", "StatefulSet", workers.statefulset),
 
-  statefulset(observed, spec):: {
-    local podTemplate        = spec.worker.template,
+  statefulset(observed, spec):: std.prune({
+    local workerSpec         = common.workerSpec(observed, spec),
+    local podTemplate        = workerSpec.template,
     local desiredMetadata    = k8s.getKeyOrElse(podTemplate, 'metadata', {}),
     local desiredLabels      = k8s.getKeyOrElse(desiredMetadata, 'labels', {}),
     local observedMaster     = utils.getHead(
-      master.components(observed, [ observed.parent.spec ]).observed
+      master.components(observed, observed.parent.spec).observed
     ),
 
     apiVersion: 'apps/v1',
     kind: 'StatefulSet',
 
     metadata: desiredMetadata {
-      name:  chj.workersName(observed, spec),
-      namespace: chj.namespace(observed, spec),
-      labels: desiredLabels + chj.workerLabels(observed, spec),
+      name:  common.workersName(observed, spec),
+      namespace: common.namespace(observed, spec),
+      labels: desiredLabels + common.workerLabels(observed, spec),
     },
 
     spec: {
       selector: {
-        matchLabels: desiredLabels + chj.workerLabels(observed, spec)
+        matchLabels: desiredLabels + common.workerLabels(observed, spec)
       },
 
-      podManagementPolicy: chj.defaults.podManagementPolicy,
-      serviceName: chj.subdomainName(observed, spec),
+      podManagementPolicy: common.constants.podManagementPolicy,
+      serviceName: common.subdomainName(observed, spec),
       replicas: if master.isCompleted(observedMaster) then
         0
       else
-        spec.worker.replicas,
+        workerSpec.replicas,
 
       template: podTemplate {
         metadata: desiredMetadata {
-          labels: desiredLabels + chj.workerLabels(observed, spec),
+          labels: desiredLabels + common.workerLabels(observed, spec),
         },
         spec: podTemplate.spec {
+          serviceAccount: common.saName(observed, spec),
           local desiredVolumes = k8s.getKeyOrElse(podTemplate.spec, 'volumes', []),
-          volumes:
-            desiredVolumes
-            + volumes.assets(observed, spec)
-            + volumes.kubectlDir(observed, spec),
+          volumes: desiredVolumes + volumes.all(observed, spec),
 
           local desiredInitContainers = k8s.getKeyOrElse(podTemplate.spec, 'initContainers', []),
-          initContainers: desiredInitContainers + [
-            {
-              name: 'kubectl-downloader',
-              image: 'tutum/curl',
-              command: [
-                'sh',
-                '-c',
-                |||
-                  curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && \
-                  chmod +x kubectl && \
-                  mv kubectl /kubectl-download/kubectl
-                |||,
-              ],
-              volumeMounts: volumes.kubectlDirMount(observed, spec, 'kubectl-download'),
-            }
-          ],
+          initContainers: [{
+            name: 'chainer-operator-kubectl-downloader',
+            image: 'tutum/curl',
+            command: [ '/kubeflow/chainer-operator/assets/download_kubectl.sh' ],
+            args: [ '/kubeflow/chainer-operator/kubectl_dir' ],
+            volumeMounts:
+              volumes.allMounts(observed, spec, '/kubeflow/chainer-operator'),
+          }] + [ c {
+            volumeMounts +: volumes.allMounts(observed, spec, '/kubeflow/chainer-operator')
+          } for c in desiredInitContainers ],
 
           local desiredContainers = k8s.getKeyOrElse(podTemplate.spec, 'containers', []),
           containers: [ c {
             env +: [
-              { name: 'CHAINERJOB_ASSETS_DIR', value: '/chainerjob/assets'},
-              { name: 'CHAINERJOB_KUBCTL_DIR', value: '/chainerjob/kubectl_dir'},
-              { name: 'OMPI_MCA_btl', value: 'tcp,self' },
-              { name: 'OMPI_MCA_btl_tcp_if_include', value:'eth0' },
-              { name: 'OMPI_MCA_plm_rsh_no_tree_spawn', value: '1' },
-              { name: 'OMPI_MCA_plm_rsh_agent', value: '/chainerjob/assets/kube-plm-rsh-agent'},
-              { name: 'OMPI_MCA_orte_keep_fqdn_hostnames', value: 't'},
-            ],
-
-            volumeMounts +: [
-              volumes.assetsMount(observed, spec, '/chainerjob/assets')[0],
-              volumes.kubectlDirMount(observed, spec, 'chainerjob/kubectl_dir')[0]
-            ]
+            {
+              name: 'OMPI_MCA_btl_tcp_if_exclude',
+              value: 'lo,docker0',
+            }, {
+              name: 'OMPI_MCA_plm_rsh_agent',
+              value: '/kubeflow/chainer-operator/assets/kubexec.sh',
+            }, {
+              name: 'OMPI_MCA_orte_keep_fqdn_hostnames',
+              value: 't'
+            },{
+              name: 'KUBCTL',
+              value: '/kubeflow/chainer-operator/kubectl_dir/kubectl',
+            }],
+            volumeMounts +: volumes.allMounts(observed, spec, '/kubeflow/chainer-operator'),
           } for c in desiredContainers ]
         }
       }
     }
-  }
+  }),
 }

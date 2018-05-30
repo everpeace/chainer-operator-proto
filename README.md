@@ -15,7 +15,7 @@ You firstly install `chainer-operator` to your kubernetes cluster which provides
 2. install `chainer-operator`
    ```
    # install chainerjob operator scripts(jsonnnet)
-   $ kubectl -n metacontroller create configmap chainerjob-operator-v1alpha1-hooks --from-file=v1alpha1-hooks
+   $ kubectl -n metacontroller create configmap chainer-operator-v1alpha1-hooks --from-file=v1alpha1-hooks
 
    # create 'ChainerJob' CRD and deploy chainerjob operator
    $ kubectl apply -f chainer-operator.yaml
@@ -23,10 +23,10 @@ You firstly install `chainer-operator` to your kubernetes cluster which provides
    $ kubectl get crd
    $ k get crd
     NAME                                         AGE
-    chainerjobs.k8s.chainer.org                  14h
-    compositecontrollers.metacontroller.k8s.io   7d
-    controllerrevisions.metacontroller.k8s.io    7d
-    decoratorcontrollers.metacontroller.k8s.io   7d
+    chainerjobs.kubeflow.org                    14s
+    compositecontrollers.metacontroller.k8s.io   1m
+    controllerrevisions.metacontroller.k8s.io    1m
+    decoratorcontrollers.metacontroller.k8s.io   1m
     ```
 
 ## Run your Chainer Jobs

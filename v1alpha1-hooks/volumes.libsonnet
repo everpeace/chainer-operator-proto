@@ -1,7 +1,6 @@
 local k8s = import "k8s.libsonnet";
 local metacontroller = import "metacontroller.libsonnet";
-local chj = import "chainerjob.libsonnet";
-local volumes = import "volumes.libsonnet";
+local common = import "common.libsonnet";
 
 {
   local volumes = self,
@@ -18,45 +17,50 @@ local volumes = import "volumes.libsonnet";
 
   hostfileDir(observed, spec) :: [
     {
-      name: 'chainerjob-hostfile-dir',
+      name: 'chainer-operator-hostfile-dir',
       emptyDir: {}
     }
   ],
   hostfileDirMount(observed, spec, mountPath) :: [
     {
-      name: 'chainerjob-hostfile-dir',
-      mountPath: mountPath
+      name: 'chainer-operator-hostfile-dir',
+      mountPath: mountPath,
     }
   ],
 
   kubectlDir(observed, spec) :: [
     {
-      name: 'chainerjob-kubectl-dir',
+      name: 'chainer-operator-kubectl-dir',
       emptyDir: {}
     }
   ],
   kubectlDirMount(observed, spec, mountPath) :: [
     {
-      name: 'chainerjob-kubectl-dir',
+      name: 'chainer-operator-kubectl-dir',
       mountPath: mountPath
     }
   ],
 
   assets(observed, spec) :: [
     {
-      name: 'chainerjob-assets',
+      name: 'chainer-operator-assets',
       configMap: {
-        name: chj.assetsName(observed, spec),
+        name: common.assetsName(observed, spec),
         items: [
+          {
+            key: 'download_kubectl.sh',
+            path: 'download_kubectl.sh',
+            mode: 365,
+          },
           {
             key: 'gen_hostfile.sh',
             path: 'gen_hostfile.sh',
-            mode: 365
+            mode: 365,
           },
           {
-            key: 'kube-plm-rsh-agent',
-            path: 'kube-plm-rsh-agent',
-            mode: 365
+            key: 'kubexec.sh',
+            path: 'kubexec.sh',
+            mode: 365,
           }
         ]
       }
@@ -64,7 +68,7 @@ local volumes = import "volumes.libsonnet";
   ],
   assetsMount(observed, spec, mountPath):: [
     {
-      name: 'chainerjob-assets',
+      name: 'chainer-operator-assets',
       mountPath: mountPath
     }
   ]

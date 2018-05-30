@@ -1,105 +1,112 @@
 local k8s = import "k8s.libsonnet";
 local metacontroller = import "metacontroller.libsonnet";
-local chj = import "chainerjob.libsonnet";
+local common = import "common.libsonnet";
 local volumes = import "volumes.libsonnet";
+local utils = import "utils.libsonnet";
 {
   local master = self,
 
-  components(observed, specs)::
-    metacontroller.collection(observed, specs, "v1", "Pod", master.pod),
+  components(observed, spec)::
+    metacontroller.collection(observed, [spec], "batch/v1", "Job", master.job),
 
-  pod(observed, spec):: {
-    local podTemplate = chj.masterSpec(observed, spec).template,
+  job(observed, spec):: std.prune({
+    local masterSpec = common.masterSpec(observed, spec),
+    local podTemplate = masterSpec.template,
+
+    apiVersion: 'batch/v1',
+    kind: 'Job',
+
     local desiredMetadata = k8s.getKeyOrElse(podTemplate, 'metadata', {}),
     local desiredLabels   = k8s.getKeyOrElse(desiredMetadata, 'labels', {}),
-
-    apiVersion: 'v1',
-    kind: 'Pod',
-
     metadata: desiredMetadata {
-      name: chj.masterName(observed, spec),
-      labels: desiredLabels + chj.masterLabels(observed, spec),
+      name: common.masterName(observed, spec),
+      labels: desiredLabels + common.masterLabels(observed, spec),
     },
 
-    spec: podTemplate.spec {
-      restartPolicy: 'OnFailure',
-      hostname:chj.masterName(observed, spec),
-      subdomain: chj.subdomainName(observed, spec),
-
-      local desiredVolumes = k8s.getKeyOrElse(podTemplate.spec, 'volumes', []),
-      volumes: desiredVolumes
-        + volumes.kubectlDir(observed, spec)
-        + if chj.workerSpec(observed, spec).replicas == 0 then
-          []
-        else
-          volumes.hostfileDir(observed, spec)
-          + volumes.assets(observed, spec),
-
-      local desiredInitContainers = k8s.getKeyOrElse(podTemplate.spec, 'initContainers', []),
-      local hostfileInitializer = if chj.workerSpec(observed, spec).replicas == 0 then
-        []
-      else [{
-        name: 'hostfile-initializer',
-        image: 'everpeace/kubectl:1.9.4',
-        imagePullPolicy: 'IfNotPresent',
-        command: [
-          'sh',
-          '-c',
-          '$(CHAINERJOB_ASSETS_DIR)/gen_hostfile.sh $(CHAINERJOB_HOSTFILE_DIR)/hostfile'
-        ],
-        env: [
-          { name: 'CHAINERJOB_HOSTFILE_DIR', value: '/chainerjob/generated'},
-          { name: 'CHAINERJOB_ASSETS_DIR', value: '/chainerjob/assets'}
-        ],
-        volumeMounts:
-          volumes.hostfileDirMount(observed, spec, '/chainerjob/generated')
-          + volumes.assetsMount(observed, spec, '/chainerjob/assets')
-      }],
-
-      initContainers: desiredInitContainers + hostfileInitializer + [
-        {
-          name: 'kubectl-downloader',
-          image: 'tutum/curl',
-          command: [
-            'sh',
-            '-c',
-            |||
-              curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && \
-              chmod +x kubectl && \
-              mv kubectl /kubectl-download/kubectl
-            |||,
-          ],
-          volumeMounts: volumes.kubectlDirMount(observed, spec, 'kubectl-download'),
-        }
-      ],
-
-      local desiredContainers = k8s.getKeyOrElse(podTemplate.spec, 'containers', []),
-
-      containers: [ c {
-        env +: [
-          { name: 'CHAINERJOB_KUBCTL_DIR', value: '/chainerjob/kubectl_dir'}
-        ] + if chj.workerSpec(observed, spec).replicas == 0 then
-          []
-        else
-          [{ name: 'CHAINERJOB_HOSTFILE_DIR', value: '/chainerjob/generated'},
-            { name: 'CHAINERJOB_ASSETS_DIR', value: '/chainerjob/assets'},
-            { name: 'OMPI_MCA_btl_tcp_if_include', value:'eth0' },
-            { name: 'OMPI_MCA_plm_rsh_agent', value: '/chainerjob/assets/kube-plm-rsh-agent'},
-            { name: 'OMPI_MCA_orte_keep_fqdn_hostnames', value: 't'},
-          ],
-        volumeMounts +: volumes.kubectlDirMount(observed, spec, '/chainerjob/kubectl_dir')
-          + if chj.workerSpec(observed, spec).replicas == 0 then
-            []
+    spec: {
+      activeDeadlineSeconds: if 'activeDeadlineSeconds' in masterSpec then
+        masterSpec.activeDeadlineSeconds
+      else
+        {},
+      backoffLimit: if 'backoffLimit' in masterSpec then
+        masterSpec.backoffLimit
+      else
+        {},
+      template: {
+        spec: podTemplate.spec {
+          serviceAccount: common.saName(observed, spec),
+          restartPolicy: if 'restartPolicy' in podTemplate.spec then
+            podTemplate.spec.restartPolicy
           else
-            volumes.hostfileDirMount(observed, spec, '/chainerjob/generated')
-            + volumes.assetsMount(observed, spec, '/chainerjob/assets'),
-      } for c in desiredContainers],
-    }
-  },
+            common.constants.restartPolicy,
+
+          local desiredVolumes = k8s.getKeyOrElse(podTemplate.spec, 'volumes', []),
+          volumes: desiredVolumes + volumes.all(observed, spec),
+
+          local workerSpec = common.workerSpec(observed, spec),
+          local replicas = if 'replicas' in workerSpec then workerSpec.replicas else 0,
+          local kubectlDownloader = if replicas == 0 then
+            []
+          else [{
+            name: 'chainer-operator-kubectl-downloader',
+            image: 'tutum/curl',
+            command: [ '/kubeflow/chainer-operator/assets/download_kubectl.sh' ],
+            args: [ '/kubeflow/chainer-operator/kubectl_dir' ],
+            volumeMounts: volumes.allMounts(observed, spec, '/kubeflow/chainer-operator'),
+          }],
+          local hostfileGenerator = if replicas == 0 then
+            []
+          else [{
+            name: 'chainer-operator-hostfile-generator',
+            image: 'alpine:latest',
+            imagePullPolicy: 'IfNotPresent',
+            command: [ '/kubeflow/chainer-operator/assets/gen_hostfile.sh' ],
+            args: [
+              '$(POD_NAME)',
+              '/kubeflow/chainer-operator/kubectl_dir/kubectl',
+              '/kubeflow/chainer-operator/generated/hostfile'
+            ],
+            env: [{
+              name: 'POD_NAME',
+              valueFrom: {
+                fieldRef: {
+                  fieldPath: 'metadata.name',
+                },
+              },
+            }],
+            volumeMounts: volumes.allMounts(observed, spec, '/kubeflow/chainer-operator')
+          }],
+          local desiredInitContainers = k8s.getKeyOrElse(podTemplate.spec, 'initContainers', []),
+
+          initContainers: kubectlDownloader + hostfileGenerator + desiredInitContainers,
+
+          local desiredContainers = k8s.getKeyOrElse(podTemplate.spec, 'containers', []),
+          containers: [ c {
+            env +: [{
+              name: 'OMPI_MCA_btl_tcp_if_exclude',
+              value: 'lo,docker0',
+            }, {
+              name: 'OMPI_MCA_plm_rsh_agent',
+              value: '/kubeflow/chainer-operator/assets/kubexec.sh',
+            }, {
+              name: 'OMPI_MCA_orte_keep_fqdn_hostnames',
+              value: 't'
+            }, {
+              name: 'OMPI_MCA_orte_default_hostfile',
+              value: '/kubeflow/chainer-operator/generated/hostfile',
+            },{
+              name: 'KUBCTL',
+              value: '/kubeflow/chainer-operator/kubectl_dir/kubectl',
+            }],
+            volumeMounts +: volumes.allMounts(observed, spec, '/kubeflow/chainer-operator'),
+          } for c in desiredContainers],
+        },
+      },
+    },
+  }),
 
   isCompleted(observedMaster)::
-    local conditionStatus = k8s.conditionStatus(observedMaster, "Ready");
-    local conditionReason = k8s.conditionReason(observedMaster, "Ready");
-
-    conditionStatus == "False" && conditionReason == "PodCompleted"
+    local completed = k8s.conditionStatus(observedMaster, "Complete") == "True";
+    local failed = k8s.conditionStatus(observedMaster, "Failed") == "True";
+    completed || failed,
 }

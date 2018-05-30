@@ -1,33 +1,32 @@
-apiVersion: k8s.chainer.org/v1alpha1
+apiVersion: kubeflow.org/v1alpha1
 kind: ChainerJob
 metadata:
   name: examplejob-chainermn
 spec:
-  master:
+  backend: mpi
+  replicaSpecs:
+  - replicas: 1
+    replicaType: MASTER
     template:
       spec:
         containers:
         - name: chainer
-          image: # YOUR_REPO:YOUR_TAG
+          image: everpeace/chainermn:1.3.0
           command:
           - sh
           - -c
           - |
-            mpiexec --allow-run-as-root \
-              -n 3 -N 1 --display-map \
-              --hostfile /chainerjob/generated/hostfile \
-              --mca orte_base_help_aggregate 0 \
-              --mca mpi_cuda_support 0 \
-              python3 /train_mnist.py -e 2 -b 100
-  worker:
-    replicas: 2
+            mpiexec -n 2 -N 1 --allow-run-as-root --display-map \
+            python3 /train_mnist.py -e 2 -b 100
+  - replicas: 1
+    replicaType: WORKER
     template:
       spec:
         containers:
         - name: chainer
-          image: # YOUR_REPO:YOUR_TAG
+          image: everpeace/chainermn:1.3.0
           command:
           - sh
           - -c
           - |
-            while true; do sleep & wait; done
+            while true; do sleep 1 & wait; done

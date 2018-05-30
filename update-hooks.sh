@@ -12,5 +12,5 @@ expr='configmap "(.+)" created'
 if [[ "${kubectl_output}" =~ $expr ]]; then
   configmap="${BASH_REMATCH[1]}"
   patch="{\"spec\":{\"template\":{\"spec\":{\"volumes\":[{\"name\":\"hooks\",\"configMap\":{\"name\":\"${configmap}\"}}]}}}}"
-  kubectl patch deployment -n metacontroller chainerjob-operator-$version -p "${patch}"
+  kubectl patch deployment -n metacontroller chainer-operator-$version -p "${patch}"
 fi
