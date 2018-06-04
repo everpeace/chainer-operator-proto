@@ -1,4 +1,6 @@
 local utils = import "utils.libsonnet";
+local k8s = import "k8s.libsonnet";
+
 {
   local common = self,
 
@@ -41,12 +43,6 @@ local utils = import "utils.libsonnet";
 
   // spec extractors
   spec(observed, spec)          :: observed.parent.spec,
-  masterSpec(observed, spec)    :: utils.getHead(std.filter(
-    function(x) x.replicaType == common.constants.masterType,
-    common.spec(observed, spec).replicaSpecs
-  )),
-  workerSpec(observed, spec)   :: utils.getHead(std.filter(
-    function(x) x.replicaType == common.constants.workerType,
-    common.spec(observed, spec).replicaSpecs
-  )),
+  masterSpec(observed, spec)    :: k8s.getKeyOrElse(common.spec(observed, spec), 'master', {}),
+  workerSpec(observed, spec)   :: k8s.getKeyOrElse(common.spec(observed, spec), 'worker', {}),
 }

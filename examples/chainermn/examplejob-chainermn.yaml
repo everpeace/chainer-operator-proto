@@ -4,9 +4,7 @@ metadata:
   name: examplejob-chainermn
 spec:
   backend: mpi
-  replicaSpecs:
-  - replicas: 1
-    replicaType: MASTER
+  master:
     template:
       spec:
         containers:
@@ -17,9 +15,9 @@ spec:
           - -c
           - |
             mpiexec -n 2 -N 1 --allow-run-as-root --display-map \
-            python3 /train_mnist.py -e 2 -b 100
-  - replicas: 1
-    replicaType: WORKER
+            python3 /train_mnist.py -e 2 -b 10
+  worker:
+    replicas: 2
     template:
       spec:
         containers:

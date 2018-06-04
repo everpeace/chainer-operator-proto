@@ -7,7 +7,9 @@ local common = import "common.libsonnet";
 
   role(observed, spec):: {
     local workerSpec = common.workerSpec(observed, spec),
-    local replicas = if 'replicas' in workerSpec then replicas else 0,
+    local replicas = if 'replicas' in workerSpec then
+      workerSpec.replicas
+    else 0,
     local workersName = common.workersName(observed, spec),
     local masterName = common.masterName(observed, spec),
     local metadata = observed.parent.metadata,

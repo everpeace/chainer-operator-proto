@@ -29,7 +29,7 @@ local common = import "common.libsonnet";
         roleLabelKey: common.roleLabelKey(observed, spec),
         workerLabelValue: common.workerLabelValue,
         masterLabelValue: common.masterLabelValue,
-        clusterSize: if 'replicas' in workerSpec then workerSpec.replicas else 0,
+        clusterSize: if 'replicas' in workerSpec then workerSpec.replicas + 1 else 1,
       },
 
       'kubexec.sh': importstr "assets_kubexec.sh",

@@ -4,9 +4,7 @@ metadata:
   name: examplejob-chainer
 spec:
   backend: mpi
-  replicaSpecs:
-  - replicas: 1
-    replicaType: MASTER
+  master:
     template:
       spec:
         containers:

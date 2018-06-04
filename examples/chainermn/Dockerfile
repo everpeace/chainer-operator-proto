@@ -20,8 +20,9 @@ RUN cd /tmp && \
 # Install ChainerMN
 RUN pip3 install chainermn==$CHAINER_MN_VERSION
 
-# Download train_mnist.py example of ChainerMN
+# Download train_mnist.py example of ChainerMN and download mnist data
 # In practice, you would download your codes here.
 RUN mkdir -p /chainermn-examples/mnist && \
   cd /chainermn-examples/mnist && \
-  wget https://raw.githubusercontent.com/chainer/chainermn/v${CHAINER_MN_VERSION}/examples/mnist/train_mnist.py
+  wget https://raw.githubusercontent.com/chainer/chainermn/v${CHAINER_MN_VERSION}/examples/mnist/train_mnist.py -O /train_mnist.py && \
+  python3 -c "import chainer; chainer.datasets.get_mnist()"
