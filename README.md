@@ -52,7 +52,7 @@ You firstly install `chainer-operator` to your kubernetes cluster which provides
    # you can access logs
    # if you're not faimilier with stern??  please visit https://github.com/wercker/stern
    $ stern examplejob-chainer
-   // you will see ChainerMN mnist example log (cpu mode.)
+   // you will see Chainer mnist example log (cpu mode.)
 
    # when job finished, you can see the job is completed
    $ k describe chainerjobs   
