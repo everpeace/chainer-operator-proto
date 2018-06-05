@@ -15,9 +15,9 @@ spec:
           - -c
           - |
             mpiexec -n 2 -N 1 --allow-run-as-root --display-map \
-            python3 /train_mnist.py -e 2 -b 10
+            python3 /train_mnist.py -e 2 -b 1000 -u 100
   worker:
-    replicas: 2
+    replicas: 1
     template:
       spec:
         containers:

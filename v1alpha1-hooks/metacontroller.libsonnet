@@ -1,15 +1,15 @@
-local k8s = import "k8s.libsonnet";
+local k8s = import 'k8s.libsonnet';
 
 // Library for working with kube-metacontroller.
 {
   local metacontroller = self,
 
   // Extend a metacontroller request object with extra fields and functions.
-  observed(request):: request + {
+  observed(request):: request {
     children+: {
       // Get a map of children of a given kind, by child name.
       getMap(apiVersion, kind)::
-        self[kind + "." + apiVersion],
+        self[kind + '.' + apiVersion],
 
       // Get a list of children of a given kind.
       getList(apiVersion, kind)::
@@ -30,8 +30,8 @@ local k8s = import "k8s.libsonnet";
 
     observed: observed.children.getList(apiVersion, kind),
     desired: [
-      {apiVersion: apiVersion, kind: kind} + desired(observed, spec)
-        for spec in self.specs
+      { apiVersion: apiVersion, kind: kind } + desired(observed, spec)
+      for spec in self.specs
     ],
 
     getObserved(name): observed.children.get(apiVersion, kind, name),

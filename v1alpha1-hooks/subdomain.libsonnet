@@ -1,16 +1,16 @@
-local k8s = import "k8s.libsonnet";
-local metacontroller = import "metacontroller.libsonnet";
-local common = import "common.libsonnet";
+local common = import 'common.libsonnet';
+local k8s = import 'k8s.libsonnet';
+local metacontroller = import 'metacontroller.libsonnet';
 
 {
   local subdomain = self,
 
-  components(observed, spec) ::
+  components(observed, spec)::
     metacontroller.collection(
-      observed, [spec], "v1", "Service", subdomain.service
+      observed, [spec], 'v1', 'Service', subdomain.service
     ),
 
-  service(observed, spec)  :: {
+  service(observed, spec):: {
     apiVersion: 'v1',
     kind: 'Service',
     metadata: {
@@ -26,8 +26,8 @@ local common = import "common.libsonnet";
           name: 'dummy',
           port: 1234,
           targetPort: 1234,
-        }
-      ]
+        },
+      ],
     },
-  }
+  },
 }
