@@ -14,7 +14,7 @@ spec:
           - sh
           - -c
           - |
-            mpiexec -n 2 -N 1 --allow-run-as-root --display-map \
+            mpiexec -n 2 -N 1 --allow-run-as-root --display-map  --mca mpi_cuda_support 0 \
             python3 /train_mnist.py -e 2 -b 1000 -u 100
   worker:
     replicas: 1

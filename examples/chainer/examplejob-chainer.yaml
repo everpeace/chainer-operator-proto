@@ -14,4 +14,4 @@ spec:
           - sh
           - -c
           - |
-            python3 /train_mnist.py -e 2 -b 100
+            python3 /train_mnist.py -e 2 -b 1000 -u 100 --noplot

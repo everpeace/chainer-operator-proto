@@ -31,7 +31,7 @@ You firstly install `chainer-operator` to your kubernetes cluster which provides
 
 ## Run your Chainer Jobs
 ### Case 1: Chainer Job (single pod)
-1. build your image
+1. (optional) build your image
    ```
    $ cd examples/chainer
    $ ./build-and-publish.sh YOUR_IMAGE_REPO YOUR_IMAGE_TAG
@@ -41,16 +41,26 @@ You firstly install `chainer-operator` to your kubernetes cluster which provides
    ```
    $ cd examples/chainer
 
-   # replace image info in examplejob-chainer.yaml
+   # replace image info in examplejob-chainer.yaml if you built your image
 
    $ kubectl create -f examplejob-chainer.yaml
-   $ kubectl logs -f examplejob-chainer-master -c chainer
-   // you will see chainer mnist example log (cpu mode.)
+
+   # you can describe chainerjobs
+   # you'll see examplejob-chainermn is active.
+   $ k describe chainerjobs
+
+   # you can access logs
+   # if you're not faimilier with stern??  please visit https://github.com/wercker/stern
+   $ stern examplejob-chainer
+   // you will see ChainerMN mnist example log (cpu mode.)
+
+   # when job finished, you can see the job is completed
+   $ k describe chainerjobs   
    ```
 
 
 ### Case 2: ChainerMN Job (Multiple Nodes)
-1. build your image
+1. (optional) build your image
    ```
    $ cd examples/chainermn
    $ ./build-and-publish.sh YOUR_IMAGE_REPO YOUR_IMAGE_TAG
@@ -60,9 +70,19 @@ You firstly install `chainer-operator` to your kubernetes cluster which provides
    ```
    $ cd examples/chainermn
 
-   # replace image info in examplejob-chainermn.yaml
+   # replace image info in examplejob-chainermn.yaml if you built your image
 
    $ kubectl create -f examplejob-chainermn.yaml
-   $ kubectl logs -f examplejob-chainermn-master -c chainer
+
+   # you can describe chainerjobs
+   # you'll see examplejob-chainermn is active.
+   $ k describe chainerjobs
+
+   # you can access logs
+   # if you're not faimilier with stern??  please visit https://github.com/wercker/stern
+   $ stern examplejob-chainermn
    // you will see ChainerMN mnist example log (cpu mode.)
+
+   # when job finished, you can see the job is completed
+   $ k describe chainerjobs   
    ```
